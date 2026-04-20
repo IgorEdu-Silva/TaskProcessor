@@ -4,6 +4,11 @@ out/
 !**/src/test/**/out/
 src/test
 .kotlin
+.idea
+.idea/
+*.iml
+.gradle/
+build/
 
 ### Eclipse ###
 .apt_generated
