@@ -9,6 +9,9 @@ src/test
 *.iml
 .gradle/
 build/
+gradle/
+gradlew
+gradlew.bat
 
 ### Eclipse ###
 .apt_generated

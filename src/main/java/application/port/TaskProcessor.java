@@ -1,5 +1,7 @@
 package application.port;
 
+import java.util.UUID;
+
 public interface TaskProcessor {
-    void process(Long taskId);
+    void enqueue(UUID taskId);
 }
