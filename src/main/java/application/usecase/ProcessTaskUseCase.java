@@ -1,10 +1,10 @@
 package application.usecase;
 
-import application.handler.TaskHandler;
 import application.port.TaskRepositoryPort;
 import application.registry.TaskHandlerRegistry;
 import domain.model.Task;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -21,12 +21,24 @@ public class ProcessTaskUseCase {
 
     public void execute(UUID taskId) {
 
-        if (!repository.markAsProcessing(taskId)) return;
+        Optional.of(taskId)
+                .filter(repository::markAsProcessing)
+                .flatMap(repository::findById)
+                .filter(task -> !task.isFinalState())
+                .ifPresent(this::process);
+    }
 
-        Task task = repository.findById(taskId).orElseThrow();
-        TaskHandler handler = handlerRegistry.getHandler(task.getType());
+    private void process(Task task) {
+        var handler = handlerRegistry.getHandler(task.getType());
 
-        runWithState(task, handler::execute, Task::complete, Task::fail);
+        runWithState(
+                task,
+                t -> Optional.of(handler.execute(t))
+                        .filter(Boolean::booleanValue)
+                        .orElseThrow(),
+                Task::complete,
+                Task::fail
+        );
     }
 
     private void runWithState(
