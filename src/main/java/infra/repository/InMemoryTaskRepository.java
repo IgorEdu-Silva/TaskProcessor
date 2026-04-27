@@ -1,21 +1,16 @@
-package support;
+package infra.repository;
 
 import application.port.TaskRepositoryPort;
 import domain.model.Task;
 import domain.model.TaskStatus;
 
-import java.time.Clock;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryTaskRepository implements TaskRepositoryPort {
 
     private final Map<UUID, Task> storage = new ConcurrentHashMap<>();
-    private final Clock clock;
-
-    public InMemoryTaskRepository(Clock clock) {
-        this.clock = clock;
-    }
 
     @Override
     public Task save(Task task) {
@@ -46,18 +41,23 @@ public class InMemoryTaskRepository implements TaskRepositoryPort {
     public List<Task> findTasksInRetry() {
         return storage.values().stream()
                 .filter(task -> task.getStatus() == TaskStatus.RETRY)
+                .filter(task -> task.getNextRetryAt() != null)
+                .filter(task -> task.getNextRetryAt().isBefore(Instant.now()))
                 .toList();
     }
 
     @Override
     public boolean markAsProcessing(UUID taskId) {
         return Optional.ofNullable(storage.get(taskId))
-                .filter(Task::canStartProcessing)
                 .map(task -> {
                     synchronized (task) {
-                        if (!task.canStartProcessing()) return false;
-                        task.requestProcessing();
-                        return true;
+                        return Optional.of(task)
+                                .filter(Task::canStartProcessing)
+                                .map(t -> {
+                                    t.requestProcessing();
+                                    return true;
+                                })
+                                .orElse(false);
                     }
                 })
                 .orElse(false);
