@@ -4,6 +4,7 @@ import application.handler.TaskHandler;
 import domain.model.TaskType;
 
 import java.util.Map;
+import java.util.Optional;
 
 public class TaskHandlerRegistry {
 
@@ -14,12 +15,7 @@ public class TaskHandlerRegistry {
     }
 
     public TaskHandler getHandler(TaskType type) {
-        TaskHandler handler = handlers.get(type);
-
-        if (handler == null) {
-            throw new IllegalArgumentException("No handler for task type " + type);
-        }
-
-        return handler;
+        return Optional.ofNullable(handlers.get(type))
+                .orElseThrow(() -> new IllegalArgumentException("No handler for " + type));
     }
 }
