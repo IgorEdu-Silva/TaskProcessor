@@ -4,6 +4,8 @@ import application.port.TaskProcessor;
 import application.port.TaskRepositoryPort;
 import domain.model.Task;
 
+import java.time.Instant;
+
 public class RetryTasksUseCase {
 
     private final TaskRepositoryPort repository;
@@ -18,7 +20,11 @@ public class RetryTasksUseCase {
     public void execute() {
         repository.findTasksInRetry().stream()
                 .filter(Task::canRetry)
-                .forEach(this::retry);
+                .filter(task -> task.getNextRetryAt().isBefore(Instant.now()))
+                .peek(Task::markForRetry)
+                .peek(repository::save)
+                .map(Task::getId)
+                .forEach(processor::enqueue);
     }
 
     private void retry(Task task) {

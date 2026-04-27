@@ -19,6 +19,7 @@ public class Task {
     private TaskStatus status;
     private Instant startedAt;
     private Instant finishedAt;
+    private Instant nextRetryAt;
     private int retryCount;
 
     public Task(UUID id, TaskType type, String payload, Clock clock) {
@@ -64,11 +65,17 @@ public class Task {
         }
 
         status = TaskStatus.RETRY;
+        nextRetryAt = Instant.now(clock).plusSeconds(retryBackoff());
+    }
+
+    private long retryBackoff() {
+        return (long) Math.pow(4, retryCount);
     }
 
     public void markForRetry() {
         ensureStatus(TaskStatus.RETRY);
         status = TaskStatus.PENDING;
+        nextRetryAt = null;
     }
 
     public boolean canRetry() {
@@ -83,6 +90,10 @@ public class Task {
         return status == TaskStatus.PROCESSING
                 && startedAt != null
                 && startedAt.plus(timeout).isBefore(Instant.now(clock));
+    }
+
+    public boolean isFinalState() {
+        return status == TaskStatus.DONE || status == TaskStatus.ERROR;
     }
 
     public Duration processingTime() {
@@ -108,4 +119,5 @@ public class Task {
     public Instant getStartedAt() { return startedAt; }
     public Instant getFinishedAt() { return finishedAt; }
     public int getRetryCount() { return retryCount; }
+    public Instant getNextRetryAt() { return nextRetryAt; }
 }
