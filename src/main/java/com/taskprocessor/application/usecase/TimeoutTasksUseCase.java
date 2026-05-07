@@ -18,8 +18,7 @@ public class TimeoutTasksUseCase {
     public void execute() {
         repository.findProcessingTasks().stream()
                 .filter(task -> task.isTimedOut(timeout))
-                .peek(Task::fail)
-                .forEach(repository::save);
+                .forEach(this::fail);
     }
 
     private void fail(Task task) {

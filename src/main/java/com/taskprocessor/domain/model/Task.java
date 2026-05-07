@@ -136,8 +136,7 @@ public class Task {
 
     public boolean isTimedOut(Duration timeout) {
         return status == TaskStatus.PROCESSING
-                && startedAt != null
-                && startedAt.plus(timeout).isBefore(Instant.now(clock));
+                && processingTime().compareTo(timeout) > 0;
     }
 
     public boolean isFinalState() {
