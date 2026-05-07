@@ -5,15 +5,7 @@ import com.taskprocessor.domain.model.Task;
 
 import java.time.Duration;
 
-public class TimeoutTasksUseCase {
-
-    private final TaskRepositoryPort repository;
-    private final Duration timeout;
-
-    public TimeoutTasksUseCase(TaskRepositoryPort repository, Duration timeout) {
-        this.repository = repository;
-        this.timeout = timeout;
-    }
+public record TimeoutTasksUseCase(TaskRepositoryPort repository, Duration timeout) {
 
     public void execute() {
         repository.findProcessingTasks().stream()
