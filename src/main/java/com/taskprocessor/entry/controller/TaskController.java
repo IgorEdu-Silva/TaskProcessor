@@ -2,6 +2,7 @@ package com.taskprocessor.entry.controller;
 
 import com.taskprocessor.application.command.CreateTaskCommand;
 import com.taskprocessor.application.usecase.CreateTaskUseCase;
+import com.taskprocessor.entry.request.CreateTaskRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,8 +23,17 @@ public class TaskController {
     }
 
     @PostMapping
-    public ResponseEntity<UUID> create(@RequestBody CreateTaskCommand command) {
-        UUID id = useCase.execute(command);
-        return ResponseEntity.ok(id);
+    public ResponseEntity<UUID> create(
+            @RequestBody CreateTaskRequest request
+    ) {
+
+        UUID id = useCase.execute(
+                new CreateTaskCommand(
+                        request.type(),
+                        request.payload()
+                )
+        );
+
+        return ResponseEntity.accepted().body(id);
     }
 }
