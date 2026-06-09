@@ -18,7 +18,7 @@ abstract class TakeRepositoryContractTest {
         var repo = createRepository();
         Task task = Task.create(TaskType.GENERATE_REPORT, "payload", Clock.systemUTC());
         repo.save(task);
-        assertTrue(repo.findById(task.getId()).isPresent());
+        assertTrue(repo.findById(task.id()).isPresent());
     }
 
     @Test

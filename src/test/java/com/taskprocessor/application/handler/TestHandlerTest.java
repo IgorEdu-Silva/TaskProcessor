@@ -1,6 +1,7 @@
 package com.taskprocessor.application.handler;
 
 import com.taskprocessor.domain.model.Task;
+import com.taskprocessor.domain.result.TaskResult;
 
 import java.util.Set;
 import java.util.UUID;
@@ -11,16 +12,16 @@ public class TestHandlerTest implements TaskHandler {
     private final Set<UUID> executed = ConcurrentHashMap.newKeySet();
 
     @Override
-    public boolean execute(Task task) {
-        if (!executed.add(task.getId())) {
-            throw new IllegalStateException("Duplicate execution: " + task.getId());
+    public TaskResult execute(Task task) {
+        if (!executed.add(task.id())) {
+            throw new IllegalStateException("Duplicate execution: " + task.id());
         }
 
         try {
             Thread.sleep(10);
         } catch (InterruptedException ignored) {}
 
-        return true;
+        return TaskResult.success();
     }
 
     public int executionCount() {

@@ -1,6 +1,5 @@
 package com.taskprocessor.infra.config;
 
-import com.taskprocessor.application.factory.TaskFactory;
 import com.taskprocessor.application.port.TaskProcessor;
 import com.taskprocessor.application.port.TaskRepositoryPort;
 import com.taskprocessor.application.registry.TaskHandlerRegistry;
@@ -9,6 +8,8 @@ import com.taskprocessor.application.usecase.ProcessTaskUseCase;
 import com.taskprocessor.application.usecase.RetryTasksUseCase;
 import com.taskprocessor.application.usecase.TimeoutTasksUseCase;
 import com.taskprocessor.domain.model.TaskType;
+import com.taskprocessor.domain.policy.RetryPolicy;
+import com.taskprocessor.domain.service.TaskLifecycle;
 import com.taskprocessor.infra.handler.DataProcessingHandler;
 import com.taskprocessor.infra.handler.GenerateReportHandler;
 import com.taskprocessor.infra.processor.AsyncTaskProcessor;
@@ -33,8 +34,18 @@ public class AppConfig {
     }
 
     @Bean
-    public TaskRepositoryPort repository(JdbcTemplate jdbc, Clock clock) {
-        return new JdbcTaskRepository(jdbc, clock);
+    public RetryPolicy retryPolicy() {
+        return new RetryPolicy();
+    }
+
+    @Bean
+    public TaskLifecycle taskLifecycle(RetryPolicy retryPolicy, Clock clock) {
+        return new TaskLifecycle(retryPolicy, clock);
+    }
+
+    @Bean
+    public TaskRepositoryPort repository(JdbcTemplate jdbc) {
+        return new JdbcTaskRepository(jdbc);
     }
 
     @Bean
@@ -46,14 +57,10 @@ public class AppConfig {
     }
 
     @Bean
-    public TaskFactory taskFactory(Clock clock) {
-        return new TaskFactory(clock);
-    }
-
-    @Bean
     public ProcessTaskUseCase processTaskUseCase(TaskRepositoryPort repository,
-                                                 TaskHandlerRegistry registry) {
-        return new ProcessTaskUseCase(repository, registry);
+                                                 TaskHandlerRegistry registry,
+                                                 TaskLifecycle lifecycle) {
+        return new ProcessTaskUseCase(repository, registry, lifecycle);
     }
 
     @Bean
@@ -64,19 +71,20 @@ public class AppConfig {
     @Bean
     public CreateTaskUseCase createTaskUseCase(TaskRepositoryPort repository,
                                                TaskProcessor processor,
-                                               TaskFactory factory) {
-        return new CreateTaskUseCase(repository, processor, factory);
+                                               TaskLifecycle lifecycle) {
+        return new CreateTaskUseCase(repository, processor, lifecycle);
     }
 
     @Bean
     public RetryTasksUseCase retryTasksUseCase(TaskRepositoryPort repository,
-                                               TaskProcessor processor) {
-        return new RetryTasksUseCase(repository, processor);
+                                               TaskProcessor processor,
+                                               TaskLifecycle lifecycle) {
+        return new RetryTasksUseCase(repository, processor, lifecycle);
     }
 
     @Bean
     public TimeoutTasksUseCase timeoutTasksUseCase(TaskRepositoryPort repository,
-                                                   Clock clock) {
-        return new TimeoutTasksUseCase(repository, java.time.Duration.ofMinutes(5));
+                                                   TaskLifecycle lifecycle) {
+        return new TimeoutTasksUseCase(repository, lifecycle, java.time.Duration.ofMinutes(5));
     }
 }

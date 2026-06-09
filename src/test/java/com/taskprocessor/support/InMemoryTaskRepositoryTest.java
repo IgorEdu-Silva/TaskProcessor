@@ -12,10 +12,8 @@ import java.util.function.Predicate;
 public class InMemoryTaskRepositoryTest implements TaskRepositoryPort {
 
     private final Map<UUID, Task> storage = new ConcurrentHashMap<>();
-    private final Clock clock;
 
     public InMemoryTaskRepositoryTest(Clock clock) {
-        this.clock = clock;
     }
 
     private List<Task> findByPredicate(Predicate<Task> predicate) {
@@ -26,8 +24,21 @@ public class InMemoryTaskRepositoryTest implements TaskRepositoryPort {
 
     @Override
     public Task save(Task task) {
-        storage.put(task.getId(), task);
+        storage.put(task.id(), task);
         return task;
+    }
+
+    @Override
+    public boolean saveWhenStatus(Task task, TaskStatus expectedStatus) {
+        synchronized (storage) {
+            Task current = storage.get(task.id());
+            if (current == null || current.status() != expectedStatus) {
+                return false;
+            }
+
+            storage.put(task.id(), task);
+            return true;
+        }
     }
 
     @Override
@@ -37,29 +48,17 @@ public class InMemoryTaskRepositoryTest implements TaskRepositoryPort {
 
     @Override
     public List<Task> findPendingTasks() {
-        return findByPredicate(Task::canStartProcessing);
-    }
-
-    @Override
-    public boolean markAsProcessing(UUID taskId) {
-        Task task = storage.get(taskId);
-        if (task == null) return false;
-
-        synchronized (task) {
-            if (!task.canStartProcessing()) return false;
-            task.requestProcessing();
-            return true;
-        }
+        return findByPredicate(task -> task.status() == TaskStatus.PENDING);
     }
 
     @Override
     public List<Task> findTasksInRetry() {
-        return findByPredicate(task -> task.getStatus() == TaskStatus.RETRY);
+        return findByPredicate(task -> task.status() == TaskStatus.RETRY);
     }
 
     @Override
     public List<Task> findProcessingTasks() {
-        return findByPredicate(task -> task.getStatus() == TaskStatus.PROCESSING);
+        return findByPredicate(task -> task.status() == TaskStatus.PROCESSING);
     }
 
     public List<Task> findAll() {

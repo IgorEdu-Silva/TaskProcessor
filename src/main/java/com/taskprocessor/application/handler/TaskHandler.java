@@ -1,7 +1,8 @@
 package com.taskprocessor.application.handler;
 
 import com.taskprocessor.domain.model.Task;
+import com.taskprocessor.domain.result.TaskResult;
 
 public interface TaskHandler {
-    boolean execute(Task task);
+    TaskResult execute(Task task);
 }

@@ -10,10 +10,10 @@ public class TaskOutputMapper {
 
     public static TaskResponse toResponse(Task task){
         return new TaskResponse(
-            task.getId(),
-            task.getType().name(),
-            task.getStatus().name(),
-            task.getPayload()
+            task.id(),
+            task.type().name(),
+            task.status().name(),
+            task.payload()
         );
     }
 }

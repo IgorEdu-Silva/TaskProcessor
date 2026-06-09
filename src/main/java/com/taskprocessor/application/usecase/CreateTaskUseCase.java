@@ -1,10 +1,10 @@
 package com.taskprocessor.application.usecase;
 
 import com.taskprocessor.application.command.CreateTaskCommand;
-import com.taskprocessor.application.factory.TaskFactory;
 import com.taskprocessor.application.port.TaskProcessor;
 import com.taskprocessor.application.port.TaskRepositoryPort;
 import com.taskprocessor.domain.model.Task;
+import com.taskprocessor.domain.service.TaskLifecycle;
 
 import java.util.UUID;
 
@@ -12,20 +12,20 @@ public class CreateTaskUseCase {
 
     private final TaskRepositoryPort repository;
     private final TaskProcessor processor;
-    private final TaskFactory factory;
+    private final TaskLifecycle lifecycle;
 
     public CreateTaskUseCase(TaskRepositoryPort repository,
                              TaskProcessor processor,
-                             TaskFactory factory) {
+                             TaskLifecycle lifecycle) {
         this.repository = repository;
         this.processor = processor;
-        this.factory = factory;
+        this.lifecycle = lifecycle;
     }
 
     public UUID execute(CreateTaskCommand command) {
-        Task task = factory.create(command.type(), command.payload());
+        Task task = lifecycle.create(command.type(), command.payload());
         repository.save(task);
-        processor.enqueue(task.getId());
-        return task.getId();
+        processor.enqueue(task.id());
+        return task.id();
     }
 }

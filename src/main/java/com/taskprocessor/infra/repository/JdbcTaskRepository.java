@@ -11,7 +11,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
-import java.time.Clock;
 import java.time.Instant;
 
 import java.util.*;
@@ -20,11 +19,9 @@ import java.util.*;
 public class JdbcTaskRepository implements TaskRepositoryPort {
 
     private final JdbcTemplate jdbc;
-    private final Clock clock;
 
-    public JdbcTaskRepository(JdbcTemplate jdbc, Clock clock) {
+    public JdbcTaskRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
-        this.clock = clock;
     }
 
     @Override
@@ -39,17 +36,40 @@ public class JdbcTaskRepository implements TaskRepositoryPort {
                     finished_at = EXCLUDED.finished_at,
                     next_retry_at = EXCLUDED.next_retry_at
                 """,
-                task.getId(),
-                task.getType().name(),
-                task.getStatus().name(),
-                task.getPayload(),
-                task.getRetryCount(),
-                Timestamp.from(task.getCreatedAt()),
-                toTimestamp(task.getStartedAt()),
-                toTimestamp(task.getFinishedAt()),
-                toTimestamp(task.getNextRetryAt())
+                task.id(),
+                task.type().name(),
+                task.status().name(),
+                task.payload(),
+                task.retryCount(),
+                Timestamp.from(task.createdAt()),
+                toTimestamp(task.startedAt()),
+                toTimestamp(task.finishedAt()),
+                toTimestamp(task.nextRetryAt())
         );
         return task;
+    }
+
+    @Override
+    public boolean saveWhenStatus(Task task, TaskStatus expectedStatus) {
+        int rows = jdbc.update("""
+                UPDATE task
+                SET status = ?,
+                    retry_count = ?,
+                    started_at = ?,
+                    finished_at = ?,
+                    next_retry_at = ?
+                WHERE id = ?
+                AND status = ?
+                """,
+                task.status().name(),
+                task.retryCount(),
+                toTimestamp(task.startedAt()),
+                toTimestamp(task.finishedAt()),
+                toTimestamp(task.nextRetryAt()),
+                task.id(),
+                expectedStatus.name()
+        );
+        return rows == 1;
     }
 
     @Override
@@ -63,22 +83,9 @@ public class JdbcTaskRepository implements TaskRepositoryPort {
     }
 
     @Override
-    public boolean markAsProcessing(UUID taskId) {
-        int rows = jdbc.update("""
-                UPDATE task
-                SET status = 'PROCESSING', started_at = now()
-                WHERE id = ?
-                AND status IN ('PENDING', 'RETRY')
-                """,
-                taskId
-        );
-        return rows == 1;
-    }
-
-    @Override
     public List<Task> findPendingTasks() {
         return jdbc.query(
-                "SELECT * FROM task WHERE status IN ('PENDING', 'RETRY')",
+                "SELECT * FROM task WHERE status = 'PENDING'",
                 (rs, rowNum) -> mapRow(rs)
         );
     }
@@ -94,7 +101,7 @@ public class JdbcTaskRepository implements TaskRepositoryPort {
     @Override
     public List<Task> findTasksInRetry() {
         return jdbc.query(
-                "SELECT * FROM task WHERE status = 'RETRY' AND next_retry_at <= now()",
+                "SELECT * FROM task WHERE status = 'RETRY'",
                 (rs, rowNum) -> mapRow(rs)
         );
     }
@@ -109,8 +116,7 @@ public class JdbcTaskRepository implements TaskRepositoryPort {
                 toInstant(rs.getTimestamp("started_at")),
                 toInstant(rs.getTimestamp("finished_at")),
                 rs.getInt("retry_count"),
-                toInstant(rs.getTimestamp("next_retry_at")),
-                clock
+                toInstant(rs.getTimestamp("next_retry_at"))
         );
     }
 

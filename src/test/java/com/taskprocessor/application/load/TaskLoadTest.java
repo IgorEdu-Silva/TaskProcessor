@@ -1,13 +1,14 @@
 package com.taskprocessor.application.load;
 
 import com.taskprocessor.application.command.CreateTaskCommand;
-import com.taskprocessor.application.factory.TaskFactory;
 import com.taskprocessor.application.handler.TestHandlerTest;
 import com.taskprocessor.application.registry.TaskHandlerRegistry;
 import com.taskprocessor.application.usecase.CreateTaskUseCase;
 import com.taskprocessor.application.usecase.ProcessTaskUseCase;
 import com.taskprocessor.domain.model.TaskStatus;
 import com.taskprocessor.domain.model.TaskType;
+import com.taskprocessor.domain.policy.RetryPolicy;
+import com.taskprocessor.domain.service.TaskLifecycle;
 import com.taskprocessor.infra.async.QueueTaskProcessor;
 import org.junit.jupiter.api.Test;
 import com.taskprocessor.support.InMemoryTaskRepositoryTest;
@@ -25,6 +26,7 @@ public class TaskLoadTest {
         int totalTasks = 10000;
 
         var repository = new InMemoryTaskRepositoryTest(Clock.systemUTC());
+        var lifecycle = new TaskLifecycle(new RetryPolicy(), Clock.systemUTC());
 
         var handler = new TestHandlerTest();
 
@@ -32,14 +34,14 @@ public class TaskLoadTest {
                 TaskType.GENERATE_REPORT, handler
         ));
 
-        var processUseCase = new ProcessTaskUseCase(repository, registry);
+        var processUseCase = new ProcessTaskUseCase(repository, registry, lifecycle);
 
         var processor = new QueueTaskProcessor(processUseCase, 10);
 
         var createUseCase = new CreateTaskUseCase(
                 repository,
                 processor,
-                new TaskFactory(Clock.systemUTC())
+                lifecycle
         );
 
         // 🔥 carga
@@ -56,14 +58,14 @@ public class TaskLoadTest {
 
         // ⏳ espera
         while (repository.findAll().stream()
-                .anyMatch(t -> t.getStatus() != TaskStatus.DONE)) {
+                .anyMatch(t -> t.status() != TaskStatus.DONE)) {
             Thread.sleep(50);
         }
 
         var allTasks = repository.findAll();
 
         long done = allTasks.stream()
-                .filter(t -> t.getStatus() == TaskStatus.DONE)
+                .filter(t -> t.status() == TaskStatus.DONE)
                 .count();
 
         assertEquals(totalTasks, done);

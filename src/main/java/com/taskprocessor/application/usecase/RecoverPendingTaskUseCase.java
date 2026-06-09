@@ -15,7 +15,7 @@ public class RecoverPendingTaskUseCase {
 
     public void execute() {
         repository.findPendingTasks().stream()
-                .map(Task::getId)
+                .map(Task::id)
                 .forEach(processor::enqueue);
     }
 }

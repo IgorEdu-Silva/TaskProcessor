@@ -1,7 +1,16 @@
 package com.taskprocessor.domain.result;
 
-import com.taskprocessor.domain.model.TaskStatus;
+public sealed interface TaskResult permits SuccessResult, FailureResult {
 
-public interface TaskResult {
-    TaskStatus resultingStatus();
+    static TaskResult success() {
+        return new SuccessResult();
+    }
+
+    static TaskResult retryableFailure() {
+        return new FailureResult(true);
+    }
+
+    static TaskResult permanentFailure() {
+        return new FailureResult(false);
+    }
 }

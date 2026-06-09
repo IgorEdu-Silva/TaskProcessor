@@ -1,60 +1,73 @@
 package com.taskprocessor.application.usecase;
 
+import com.taskprocessor.application.exception.TaskHandlerNotFoundException;
 import com.taskprocessor.application.port.TaskRepositoryPort;
 import com.taskprocessor.application.registry.TaskHandlerRegistry;
 import com.taskprocessor.domain.model.Task;
+import com.taskprocessor.domain.model.TaskStatus;
+import com.taskprocessor.domain.result.TaskResult;
+import com.taskprocessor.domain.service.TaskLifecycle;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Consumer;
 
 public class ProcessTaskUseCase {
 
     private final TaskRepositoryPort repository;
     private final TaskHandlerRegistry handlerRegistry;
+    private final TaskLifecycle lifecycle;
 
     public ProcessTaskUseCase(TaskRepositoryPort repository,
-                              TaskHandlerRegistry handlerRegistry) {
+                              TaskHandlerRegistry handlerRegistry,
+                              TaskLifecycle lifecycle) {
         this.repository = repository;
         this.handlerRegistry = handlerRegistry;
+        this.lifecycle = lifecycle;
     }
 
     public void execute(UUID taskId) {
-
-        Optional.of(taskId)
-                .filter(repository::markAsProcessing)
-                .flatMap(repository::findById)
-                .filter(task -> !task.isFinalState())
+        repository.findById(taskId)
+                .filter(task -> !lifecycle.isFinalState(task))
+                .flatMap(this::claimForProcessing)
                 .ifPresent(this::process);
     }
 
-    private void process(Task task) {
-        var handler = handlerRegistry.getHandler(task.getType());
+    private Optional<Task> claimForProcessing(Task task) {
+        if (!lifecycle.canStartProcessing(task)) {
+            return Optional.empty();
+        }
 
-        runWithState(
-                task,
-                t -> Optional.of(handler.execute(t))
-                        .filter(Boolean::booleanValue)
-                        .orElseThrow(),
-                Task::complete,
-                Task::fail
-        );
+        Task started = lifecycle.start(task);
+        boolean claimed = repository.saveWhenStatus(started, task.status());
+
+        return claimed ? Optional.of(started) : Optional.empty();
     }
 
-    private void runWithState(
-            Task task,
-            Consumer<Task> action,
-            Consumer<Task> onSuccess,
-            Consumer<Task> onError
-    ) {
+    private void process(Task task) {
         try {
-            action.accept(task);
-            onSuccess.accept(task);
-        } catch (Exception e) {
-            onError.accept(task);
+            var handler = handlerRegistry.getHandler(task.type());
+            TaskResult result = Objects.requireNonNull(
+                    handler.execute(task),
+                    "handler result must not be null"
+            );
+
+            repository.saveWhenStatus(
+                    lifecycle.resolve(task, result),
+                    TaskStatus.PROCESSING
+            );
+        } catch (TaskHandlerNotFoundException e) {
+            repository.saveWhenStatus(
+                    lifecycle.fail(task, false),
+                    TaskStatus.PROCESSING
+            );
             throw e;
-        } finally {
-            repository.save(task);
+        } catch (Exception e) {
+            repository.saveWhenStatus(
+                    lifecycle.fail(task),
+                    TaskStatus.PROCESSING
+            );
+            throw e;
         }
     }
 }
