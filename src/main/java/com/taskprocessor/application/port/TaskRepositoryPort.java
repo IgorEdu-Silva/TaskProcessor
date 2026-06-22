@@ -11,7 +11,10 @@ public interface TaskRepositoryPort {
     Task save(Task task);
     boolean saveWhenStatus(Task task, TaskStatus expectedStatus);
     Optional<Task> findById(UUID id);
-    List<Task> findPendingTasks();
+    List<Task> findPendingTasks(int limit);
+    default List<Task> findPendingTasks() {
+        return findPendingTasks(Integer.MAX_VALUE);
+    }
     List<Task> findProcessingTasks();
     List<Task> findTasksInRetry();
 }

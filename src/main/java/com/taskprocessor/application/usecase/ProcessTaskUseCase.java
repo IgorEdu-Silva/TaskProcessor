@@ -17,6 +17,7 @@ public class ProcessTaskUseCase {
     private final TaskRepositoryPort repository;
     private final TaskHandlerRegistry handlerRegistry;
     private final TaskLifecycle lifecycle;
+    private static final System.Logger LOGGER = System.getLogger(ProcessTaskUseCase.class.getName());
 
     public ProcessTaskUseCase(TaskRepositoryPort repository,
                               TaskHandlerRegistry handlerRegistry,
@@ -40,6 +41,17 @@ public class ProcessTaskUseCase {
 
         Task started = lifecycle.start(task);
         boolean claimed = repository.saveWhenStatus(started, task.status());
+
+        if (!claimed) {
+            LOGGER.log(
+                    System.Logger.Level.WARNING,
+                    "Failed to claim task {0}. Expected status was {1}",
+                    task.id(),
+                    task.status()
+            );
+
+            return Optional.empty();
+        }
 
         return claimed ? Optional.of(started) : Optional.empty();
     }

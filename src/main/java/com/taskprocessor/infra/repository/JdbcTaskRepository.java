@@ -83,10 +83,11 @@ public class JdbcTaskRepository implements TaskRepositoryPort {
     }
 
     @Override
-    public List<Task> findPendingTasks() {
+    public List<Task> findPendingTasks(int limit) {
         return jdbc.query(
-                "SELECT * FROM task WHERE status = 'PENDING'",
-                (rs, rowNum) -> mapRow(rs)
+                "SELECT * FROM task WHERE status = 'PENDING' ORDER BY created_at LIMIT ?",
+                (rs, rowNum) -> mapRow(rs),
+                limit
         );
     }
 

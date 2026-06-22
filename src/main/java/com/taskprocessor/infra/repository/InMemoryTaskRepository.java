@@ -36,9 +36,10 @@ public class InMemoryTaskRepository implements TaskRepositoryPort {
     }
 
     @Override
-    public List<Task> findPendingTasks() {
+    public List<Task> findPendingTasks(int limit) {
         return storage.values().stream()
                 .filter(task -> task.status() == TaskStatus.PENDING)
+                .limit(limit)
                 .toList();
     }
 

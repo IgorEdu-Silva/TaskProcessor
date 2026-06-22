@@ -2,11 +2,13 @@ package com.taskprocessor.application.usecase;
 
 import com.taskprocessor.application.port.TaskProcessor;
 import com.taskprocessor.application.port.TaskRepositoryPort;
+import com.taskprocessor.application.port.TaskDispatchResult;
 import com.taskprocessor.domain.model.Task;
 import com.taskprocessor.domain.model.TaskStatus;
 import com.taskprocessor.domain.service.TaskLifecycle;
 
 public class RetryTasksUseCase {
+    private static final System.Logger LOGGER = System.getLogger(RetryTasksUseCase.class.getName());
 
     private final TaskRepositoryPort repository;
     private final TaskProcessor processor;
@@ -29,7 +31,16 @@ public class RetryTasksUseCase {
     private void retry(Task task) {
         Task pending = lifecycle.markForRetry(task);
         if (repository.saveWhenStatus(pending, TaskStatus.RETRY)) {
-            processor.enqueue(pending.id());
+            TaskDispatchResult result = processor.enqueue(pending.id());
+
+            if (result != TaskDispatchResult.ACCEPTED) {
+                LOGGER.log(
+                        System.Logger.Level.WARNING,
+                        "Task {0} was marked pending but not dispatched immediately. Dispatch result: {1}",
+                        pending.id(),
+                        result
+                );
+            }
         }
     }
 }

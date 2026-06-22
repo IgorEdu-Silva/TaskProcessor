@@ -1,22 +1,18 @@
 package com.taskprocessor.infra.processor;
 
-import com.taskprocessor.application.port.TaskProcessor;
 import com.taskprocessor.application.usecase.ProcessTaskUseCase;
-import org.springframework.scheduling.annotation.Async;
+import com.taskprocessor.infra.async.QueueTaskProcessor;
 
-import java.util.UUID;
+public class AsyncTaskProcessor extends QueueTaskProcessor {
 
-public class AsyncTaskProcessor implements TaskProcessor {
-
-    private final ProcessTaskUseCase useCase;
+    private static final int DEFAULT_WORKERS = 16;
+    private static final int DEFAULT_CAPACITY = 10_000;
 
     public AsyncTaskProcessor(ProcessTaskUseCase useCase) {
-        this.useCase = useCase;
+        this(useCase, DEFAULT_WORKERS, DEFAULT_CAPACITY);
     }
 
-    @Async
-    @Override
-    public void enqueue(UUID taskId) {
-        useCase.execute(taskId);
+    public AsyncTaskProcessor(ProcessTaskUseCase useCase, int workers, int capacity) {
+        super(useCase, workers, capacity);
     }
 }

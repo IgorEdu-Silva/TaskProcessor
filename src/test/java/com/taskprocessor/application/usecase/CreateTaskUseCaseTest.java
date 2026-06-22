@@ -1,6 +1,7 @@
 package com.taskprocessor.application.usecase;
 
 import com.taskprocessor.application.command.CreateTaskCommand;
+import com.taskprocessor.application.port.TaskDispatchResult;
 import com.taskprocessor.application.port.TaskProcessor;
 import com.taskprocessor.application.port.TaskRepositoryPort;
 import com.taskprocessor.domain.model.Task;
@@ -17,8 +18,10 @@ import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class CreateTaskUseCaseTest {
 
@@ -29,6 +32,8 @@ class CreateTaskUseCaseTest {
         var repository = mock(TaskRepositoryPort.class);
         var processor = mock(TaskProcessor.class);
         var useCase = new CreateTaskUseCase(repository, processor, lifecycle);
+        when(processor.enqueue(any()))
+                .thenReturn(TaskDispatchResult.ACCEPTED);
 
         var id = useCase.execute(new CreateTaskCommand(TaskType.GENERATE_REPORT, "payload"));
 

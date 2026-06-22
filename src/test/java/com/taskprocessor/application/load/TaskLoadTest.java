@@ -36,30 +36,27 @@ public class TaskLoadTest {
 
         var processUseCase = new ProcessTaskUseCase(repository, registry, lifecycle);
 
-        var processor = new QueueTaskProcessor(processUseCase, 10);
+        try (var processor = new QueueTaskProcessor(processUseCase, 10, 100_000)) {
+            var createUseCase = new CreateTaskUseCase(
+                    repository,
+                    processor,
+                    lifecycle
+            );
 
-        var createUseCase = new CreateTaskUseCase(
-                repository,
-                processor,
-                lifecycle
-        );
+            IntStream.range(0, totalTasks)
+                    .forEach(i -> {
+                        var id = createUseCase.execute(
+                                new CreateTaskCommand(TaskType.GENERATE_REPORT, "task-" + i)
+                        );
 
-        // 🔥 carga
-        IntStream.range(0, totalTasks)
-                .forEach(i -> {
-                    var id = createUseCase.execute(
-                            new CreateTaskCommand(TaskType.GENERATE_REPORT, "task-" + i)
-                    );
+                        IntStream.range(0, 5)
+                                .forEach(j -> processor.enqueue(id));
+                    });
 
-                    // 🔥 spam de duplicação
-                    IntStream.range(0, 5)
-                            .forEach(j -> processor.enqueue(id));
-                });
-
-        // ⏳ espera
-        while (repository.findAll().stream()
-                .anyMatch(t -> t.status() != TaskStatus.DONE)) {
-            Thread.sleep(50);
+            while (repository.findAll().stream()
+                    .anyMatch(t -> t.status() != TaskStatus.DONE)) {
+                Thread.sleep(50);
+            }
         }
 
         var allTasks = repository.findAll();

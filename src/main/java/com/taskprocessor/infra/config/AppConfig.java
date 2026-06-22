@@ -1,10 +1,12 @@
 package com.taskprocessor.infra.config;
 
+import com.taskprocessor.application.config.TaskProcessorProperties;
 import com.taskprocessor.application.port.TaskProcessor;
 import com.taskprocessor.application.port.TaskRepositoryPort;
 import com.taskprocessor.application.registry.TaskHandlerRegistry;
 import com.taskprocessor.application.usecase.CreateTaskUseCase;
 import com.taskprocessor.application.usecase.ProcessTaskUseCase;
+import com.taskprocessor.application.usecase.RecoverPendingTaskUseCase;
 import com.taskprocessor.application.usecase.RetryTasksUseCase;
 import com.taskprocessor.application.usecase.TimeoutTasksUseCase;
 import com.taskprocessor.domain.model.TaskType;
@@ -14,18 +16,18 @@ import com.taskprocessor.infra.handler.DataProcessingHandler;
 import com.taskprocessor.infra.handler.GenerateReportHandler;
 import com.taskprocessor.infra.processor.AsyncTaskProcessor;
 import com.taskprocessor.infra.repository.JdbcTaskRepository;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.time.Clock;
 import java.util.Map;
 
 @Configuration
-@EnableAsync
 @EnableScheduling
+@EnableConfigurationProperties(TaskProcessorProperties.class)
 public class AppConfig {
 
     @Bean
@@ -63,9 +65,16 @@ public class AppConfig {
         return new ProcessTaskUseCase(repository, registry, lifecycle);
     }
 
-    @Bean
-    public TaskProcessor processor(ProcessTaskUseCase processTaskUseCase) {
-        return new AsyncTaskProcessor(processTaskUseCase);
+    @Bean(destroyMethod = "close")
+    public AsyncTaskProcessor processor(
+            ProcessTaskUseCase processTaskUseCase,
+            TaskProcessorProperties properties
+    ) {
+        return new AsyncTaskProcessor(
+                processTaskUseCase,
+                properties.maxConcurrency(),
+                properties.queueCapacity()
+        );
     }
 
     @Bean
@@ -80,6 +89,12 @@ public class AppConfig {
                                                TaskProcessor processor,
                                                TaskLifecycle lifecycle) {
         return new RetryTasksUseCase(repository, processor, lifecycle);
+    }
+
+    @Bean
+    public RecoverPendingTaskUseCase recoverPendingTaskUseCase(TaskRepositoryPort repository,
+                                                               TaskProcessor processor) {
+        return new RecoverPendingTaskUseCase(repository, processor, 1_000);
     }
 
     @Bean

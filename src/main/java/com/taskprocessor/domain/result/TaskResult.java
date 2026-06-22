@@ -10,7 +10,4 @@ public sealed interface TaskResult permits SuccessResult, FailureResult {
         return new FailureResult(true);
     }
 
-    static TaskResult permanentFailure() {
-        return new FailureResult(false);
-    }
 }
